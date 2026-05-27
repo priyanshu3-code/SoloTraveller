@@ -6,6 +6,8 @@
     <title>Travel Safe - AI Scam Detection</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Fredoka:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             -webkit-font-smoothing: antialiased;
@@ -13,16 +15,48 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1633 50%, #0f0a2e 100%);
             min-height: 100vh;
-            color: #1e293b;
+            color: #0f172a;
+            position: relative;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Fredoka', sans-serif;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-icon {
+            font-size: 4rem;
+            animation: bounce 2s ease-in-out infinite;
+            filter: drop-shadow(0 4px 6px rgba(124, 58, 237, 0.3));
+            transform: rotate(-15deg);
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0) rotate(-15deg); }
+            50% { transform: translateY(-10px) rotate(-15deg); }
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .premium-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background: linear-gradient(135deg, #7c3aed 0%, #d946ef 50%, #f97316 100%);
             position: relative;
             overflow: hidden;
+            box-shadow: 0 20px 60px rgba(124, 58, 237, 0.4), 0 0 80px rgba(217, 70, 239, 0.2);
         }
 
         .premium-header::before {
@@ -32,7 +66,7 @@
             right: -10%;
             width: 600px;
             height: 600px;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
             animation: float 6s ease-in-out infinite;
         }
 
@@ -43,8 +77,20 @@
             left: -10%;
             width: 600px;
             height: 600px;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
             animation: float 8s ease-in-out infinite reverse;
+        }
+
+        .header-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(0,0,0,0.1) 0%, transparent 50%);
+            pointer-events: none;
         }
 
         @keyframes float {
@@ -72,6 +118,21 @@
             50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.6); }
         }
 
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.5); }
+        }
+
+        .error-card-animated {
+            animation: slideIn 0.6s ease-out, pulse-red 2s ease-in-out infinite;
+        }
+
         .animate-slide-in {
             animation: slideIn 0.6s ease-out;
         }
@@ -81,33 +142,36 @@
         }
 
         .premium-card {
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(148, 163, 184, 0.1);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 247, 255, 0.95) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            box-shadow: 0 20px 60px rgba(124, 58, 237, 0.1), 0 0 30px rgba(217, 70, 239, 0.05);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
         }
 
         .premium-card:hover {
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(148, 163, 184, 0.15);
-            transform: translateY(-4px);
+            box-shadow: 0 25px 80px rgba(124, 58, 237, 0.15), 0 0 40px rgba(217, 70, 239, 0.1);
+            transform: translateY(-6px);
+            border-color: rgba(139, 92, 246, 0.3);
         }
 
         .premium-input {
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f6ff 100%);
+            border: 2px solid #e0d7f5;
+            border-radius: 14px;
             padding: 14px 18px;
             font-size: 15px;
+            font-family: 'Inter', sans-serif;
             line-height: 1.6;
             transition: all 0.3s ease;
-            color: #334155;
+            color: #1e1b4b;
         }
 
         .premium-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15), 0 0 20px rgba(217, 70, 239, 0.1);
             background: #ffffff;
         }
 
@@ -143,14 +207,16 @@
         }
 
         .btn-analyze {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7c3aed 0%, #d946ef 100%);
             color: white;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4), 0 0 20px rgba(217, 70, 239, 0.2);
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
 
         .btn-analyze:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 45px rgba(102, 126, 234, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 50px rgba(124, 58, 237, 0.5), 0 0 30px rgba(217, 70, 239, 0.3);
         }
 
         .btn-analyze:active:not(:disabled) {
@@ -178,13 +244,13 @@
         }
 
         .risk-high-gradient {
-            background: linear-gradient(135deg, #f93b1d 0%, #ea1e63 100%);
-            box-shadow: 0 20px 60px rgba(249, 59, 29, 0.25);
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            box-shadow: 0 20px 60px rgba(220, 38, 38, 0.3);
         }
 
         .risk-low-gradient {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            box-shadow: 0 20px 60px rgba(17, 153, 142, 0.25);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 20px 60px rgba(16, 185, 129, 0.3);
         }
 
         .section-header {
@@ -293,32 +359,24 @@
     </style>
 </head>
 <body>
-    <!-- Premium Header -->
-    <div class="premium-header text-white py-16 sm:py-24">
+    <!-- Compact Header -->
+    <div class="bg-gradient-to-br from-purple-200 via-purple-100 to-pink-200 py-8 sm:py-10 relative border-b-4 border-purple-400 shadow-sm">
         <div class="container mx-auto px-4 max-w-5xl">
-            <div class="header-content">
-                <div class="mb-2 inline-block footer-badge">
-                    🚀 Powered by Advanced AI
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="logo-icon">🚀🛡️</div>
+                    <div>
+                        <h1 class="text-4xl sm:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-700 via-pink-600 to-orange-500 leading-tight">
+                            Travel Safe!
+                        </h1>
+                        <p class="text-sm sm:text-base text-purple-600 font-fredoka font-semibold mt-1">
+                            🎉 Beat the scammers with AI magic ✨
+                        </p>
+                    </div>
                 </div>
-                <h1 class="text-5xl sm:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white">
-                    Travel Safe
-                </h1>
-                <p class="text-xl text-blue-100 max-w-2xl leading-relaxed">
-                    Intelligent scam detection for solo travelers. Get instant analysis and actionable advice powered by cutting-edge AI technology.
-                </p>
-                <div class="mt-6 flex flex-wrap gap-4">
-                    <div class="flex items-center gap-2 text-blue-100">
-                        <span class="text-2xl">🤖</span>
-                        <span class="text-sm font-medium">AI-Powered Analysis</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-blue-100">
-                        <span class="text-2xl">⚡</span>
-                        <span class="text-sm font-medium">Instant Results</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-blue-100">
-                        <span class="text-2xl">🌍</span>
-                        <span class="text-sm font-medium">Global Coverage</span>
-                    </div>
+                <div class="hidden sm:flex flex-col items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-purple-200 to-pink-200 shadow-md border-2 border-purple-300">
+                    <span class="text-2xl animate-spin">⚡</span>
+                    <span class="text-xs font-black text-purple-800 leading-tight">AI<br/>MAGIC</span>
                 </div>
             </div>
         </div>
@@ -328,14 +386,17 @@
     <div class="container mx-auto px-4 max-w-5xl py-12 sm:py-16">
         <!-- Input Section -->
         <div class="premium-card overflow-hidden mb-10 animate-slide-in">
-            <div class="bg-gradient-to-br from-slate-900 to-slate-800 px-8 py-8 sm:px-10">
-                <div class="flex items-center gap-3 mb-2">
-                    <span class="text-4xl">✍️</span>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-white">Describe Your Situation</h2>
+            <div class="bg-gradient-to-br from-purple-900 via-purple-800 to-pink-900 px-8 py-8 sm:px-10 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-40 h-40 bg-pink-500 rounded-full opacity-10 -mr-20 -mt-20"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-4xl">✍️</span>
+                        <h2 class="text-2xl sm:text-3xl font-bold text-white font-poppins">Describe Your Situation</h2>
+                    </div>
+                    <p class="text-purple-100 mt-2 leading-relaxed">
+                        Share the details of what happened, and our AI will analyze it for potential scam indicators with contextual advice.
+                    </p>
                 </div>
-                <p class="text-slate-300 mt-2 leading-relaxed">
-                    Share the details of what happened, and our AI will analyze it for potential scam indicators with contextual advice.
-                </p>
             </div>
 
             <form id="main-form" class="p-8 sm:p-10">
@@ -350,9 +411,13 @@
                         rows="7"
                         class="w-full premium-input"
                         placeholder="Example: A friendly local in Bangkok offered me an exclusive temple tour supposedly only open today. Usually $200 but they offered $50 if I pay cash immediately..."
+                        maxlength="5000"
                         required
                     ></textarea>
-                    <p class="text-xs text-slate-500 mt-2">💡 Tip: Include details like location, offer type, urgency, and any suspicious elements</p>
+                    <div class="flex items-center justify-between mt-2">
+                        <p class="text-xs text-slate-500">💡 Tip: Include details like location, offer type, urgency, and any suspicious elements</p>
+                        <p class="text-xs text-slate-500 font-semibold"><span id="char-count">0</span> / 5000</p>
+                    </div>
                 </div>
 
                 <div class="flex flex-col sm:flex-row gap-4">
@@ -431,37 +496,68 @@
             </div>
 
             <!-- Advice Card -->
-            <div class="premium-card overflow-hidden result-section">
-                <div class="px-8 py-8 sm:px-10 sm:py-10 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-b-2 border-slate-700">
-                    <div class="flex items-center gap-3 mb-2">
-                        <span id="advice-icon" class="text-4xl">🛡️</span>
-                        <h3 id="advice-title" class="text-2xl sm:text-3xl font-bold">Recommended Actions</h3>
+            <div class="premium-card overflow-hidden result-section animate-slide-in">
+                <div class="px-8 py-8 sm:px-10 sm:py-10 bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900 text-white border-b-2 border-purple-700 relative">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500 rounded-full opacity-10 -mr-16 -mt-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span id="advice-icon" class="text-4xl">🛡️</span>
+                            <h3 id="advice-title" class="text-2xl sm:text-3xl font-bold font-poppins">Recommended Actions</h3>
+                        </div>
+                        <p class="text-purple-100 text-sm mt-2">Follow these steps based on the risk assessment</p>
                     </div>
-                    <p class="text-blue-100 text-sm mt-2">Follow these steps based on the risk assessment</p>
                 </div>
-                <div id="advice-content" class="p-8 sm:p-10"></div>
+                <div id="advice-content" class="p-8 sm:p-10 bg-gradient-to-br from-purple-50 to-white"></div>
+            </div>
+
+            <!-- Similar Cases Card -->
+            <div id="similar-cases-container" class="hidden premium-card overflow-hidden result-section animate-slide-in">
+                <div class="px-8 py-8 sm:px-10 sm:py-10 bg-gradient-to-br from-pink-900 via-rose-800 to-pink-900 text-white border-b-2 border-rose-700 relative">
+                    <div class="absolute top-0 left-0 w-32 h-32 bg-pink-500 rounded-full opacity-10 -ml-16 -mt-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-4xl">📊</span>
+                            <h3 class="text-2xl sm:text-3xl font-bold font-poppins">Similar Reports from Other Travelers</h3>
+                        </div>
+                        <p class="text-rose-100 text-sm mt-2">See how this situation compares to other travelers' experiences</p>
+                    </div>
+                </div>
+                <div id="similar-cases-content" class="p-8 sm:p-10 bg-gradient-to-br from-rose-50 to-white"></div>
             </div>
 
             <!-- Checklist Card -->
-            <div class="premium-card overflow-hidden result-section">
-                <div class="px-8 py-8 sm:px-10 sm:py-10 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-b-2 border-slate-700">
-                    <div class="flex items-center gap-3 mb-2">
-                        <span class="text-4xl">📋</span>
-                        <h3 class="text-2xl sm:text-3xl font-bold">Action Checklist</h3>
+            <div class="premium-card overflow-hidden result-section animate-slide-in">
+                <div class="px-8 py-8 sm:px-10 sm:py-10 bg-gradient-to-br from-indigo-900 via-purple-800 to-violet-900 text-white border-b-2 border-purple-700 relative">
+                    <div class="absolute bottom-0 right-0 w-32 h-32 bg-indigo-500 rounded-full opacity-10 -mr-16 -mb-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-4xl">📋</span>
+                            <h3 class="text-2xl sm:text-3xl font-bold font-poppins">Action Checklist</h3>
+                        </div>
+                        <p class="text-purple-100 text-sm mt-2">Quick reference for your next steps</p>
                     </div>
-                    <p class="text-blue-100 text-sm mt-2">Quick reference for your next steps</p>
                 </div>
-                <div id="summary-content" class="p-8 sm:p-10"></div>
+                <div id="summary-content" class="p-8 sm:p-10 bg-gradient-to-br from-indigo-50 to-white"></div>
             </div>
 
             <!-- Error Card -->
-            <div id="error-card" class="hidden premium-card border-l-8 border-red-500 bg-red-50 p-8">
-                <div class="flex gap-4">
-                    <span class="text-4xl flex-shrink-0">❌</span>
-                    <div>
-                        <h3 class="font-bold text-red-900 text-lg mb-2">Analysis Failed</h3>
-                        <p id="error-message" class="text-red-800"></p>
+            <div id="error-card" class="hidden error-card-animated premium-card border-0 overflow-hidden">
+                <div class="bg-gradient-to-br from-red-500 via-red-600 to-red-700 p-8 sm:p-10 text-white relative">
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-red-400 rounded-full opacity-10 -mr-20 -mt-20"></div>
+                    <div class="absolute bottom-0 left-0 w-32 h-32 bg-red-400 rounded-full opacity-10 -ml-16 -mb-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-start gap-4 sm:gap-6">
+                            <span class="text-6xl sm:text-7xl flex-shrink-0 animate-bounce">⛔</span>
+                            <div class="flex-1">
+                                <h3 class="font-black text-2xl sm:text-3xl mb-2 tracking-tight">HARMFUL CONTENT BLOCKED</h3>
+                                <p class="text-red-100 text-sm opacity-90">Your input cannot be processed due to safety violations</p>
+                            </div>
+                        </div>
+                        <div id="error-message" class="mt-6 space-y-3 text-red-50"></div>
                     </div>
+                </div>
+                <div class="bg-gradient-to-br from-red-50 to-red-100 px-8 py-6 sm:px-10 sm:py-8">
+                    <p class="text-red-700 text-sm font-medium">💡 Tip: Rephrase your question as a legitimate travel safety concern to get help.</p>
                 </div>
             </div>
 
@@ -568,7 +664,80 @@
             return html;
         }
 
-        // Main form submission
+        // Format similar cases data
+        function formatSimilarCases(similarCases) {
+            if (!similarCases || !similarCases.total_cases || similarCases.total_cases === 0) {
+                return '';
+            }
+
+            const scamRate = Math.round(similarCases.scam_rate * 100);
+            const currency = similarCases.currency || 'local';
+            const avgLoss = similarCases.avg_loss ? Math.round(similarCases.avg_loss) : 0;
+
+            let html = '<div class="space-y-6">';
+
+            // Main stats card
+            html += `
+                <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="text-center">
+                            <p class="text-3xl font-bold text-purple-600">${similarCases.total_cases}</p>
+                            <p class="text-sm text-slate-600 mt-1">Similar Cases</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-3xl font-bold text-red-600">${scamRate}%</p>
+                            <p class="text-sm text-slate-600 mt-1">Confirmed Scams</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-3xl font-bold text-orange-600">${currency} ${avgLoss}</p>
+                            <p class="text-sm text-slate-600 mt-1">Avg Loss</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Case types breakdown
+            if (similarCases.case_types && similarCases.case_types.length > 0) {
+                html += '<div><p class="font-semibold text-slate-700 mb-3">📋 Common Scam Types:</p><div class="space-y-2">';
+                similarCases.case_types.forEach(caseType => {
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-slate-100 rounded-lg">
+                            <span class="text-slate-700">${caseType.type}</span>
+                            <span class="bg-purple-200 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">${caseType.count} cases</span>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+
+            // Key insight
+            html += `
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                    <p class="text-slate-700 text-sm"><strong>💡 Key Insight:</strong> This situation matches patterns from ${similarCases.total_cases} travelers. ${scamRate}% reported it as a confirmed scam with average losses of ${currency} ${avgLoss}.</p>
+                </div>
+            `;
+
+            html += '</div>';
+            return html;
+        }
+
+        // INPUT VALIDATION function
+        function validateInput(userInput) {
+            const trimmed = userInput.trim();
+
+            if (!trimmed) {
+                return { valid: false, error: 'Please enter a description of your situation.' };
+            }
+            if (trimmed.length < 10) {
+                return { valid: false, error: 'Input too short. Please provide at least 10 characters.' };
+            }
+            if (trimmed.length > 5000) {
+                return { valid: false, error: 'Input too long. Maximum 5000 characters allowed.' };
+            }
+            return { valid: true };
+        }
+
+        // Main form submission with validation
         document.getElementById('main-form').addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -577,6 +746,13 @@
             const loadingDiv = document.getElementById('loading');
             const submitButton = document.getElementById('submit-btn');
             const errorCard = document.getElementById('error-card');
+
+            // CLIENT-SIDE VALIDATION
+            const validation = validateInput(userInput);
+            if (!validation.valid) {
+                alert(validation.error);
+                return;
+            }
 
             resultsDiv.classList.add('hidden');
             errorCard.classList.add('hidden');
@@ -596,6 +772,57 @@
                 });
 
                 if (!response.ok) {
+                    const errorData = await response.json();
+                    console.log('API Error Response:', errorData);
+
+                    // Check if it's a moderation block
+                    if (errorData.workflow_status === 'blocked_by_moderation') {
+                        console.log('Moderation block detected!');
+                        loadingDiv.classList.add('hidden');
+                        resultsDiv.classList.remove('hidden');
+
+                        // Hide all analysis cards
+                        document.getElementById('analysis-card').classList.add('hidden');
+                        document.getElementById('similar-cases-container').classList.add('hidden');
+                        document.querySelectorAll('.result-section').forEach(el => el.classList.add('hidden'));
+
+                        // Show only error card
+                        errorCard.classList.remove('hidden');
+
+                        // Get violation category if available
+                        const categoryMap = {
+                            'scam_help': '💰 Scam/Fraud Help',
+                            'theft_help': '🔓 Theft/Robbery Help',
+                            'credit_card_fraud': '💳 Credit Card Fraud',
+                            'extortion_blackmail': '💸 Extortion/Blackmail',
+                            'violence': '🔪 Violence/Threats',
+                            'hate_speech': '😤 Hate Speech',
+                            'sexual_exploitation': '⚠️ Sexual Exploitation',
+                            'illegal_activities': '🚨 Illegal Activities',
+                            'harassment': '👊 Harassment/Abuse'
+                        };
+
+                        document.getElementById('error-message').innerHTML = `
+                            <div class="space-y-4">
+                                <div class="bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+                                    <p class="font-semibold text-red-50">${errorData.details || 'Your input contains harmful, unsafe, or toxic language and cannot be processed.'}</p>
+                                </div>
+                                <div class="flex items-center justify-between pt-2">
+                                    <p class="text-red-100 text-sm">Safety Detection Score</p>
+                                    <p class="font-bold text-lg">${(errorData.safety_score * 100).toFixed(0)}%</p>
+                                </div>
+                                <div class="w-full bg-red-400 bg-opacity-30 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-red-200 h-full rounded-full" style="width: ${(errorData.safety_score * 100)}%"></div>
+                                </div>
+                            </div>
+                        `;
+
+                        setTimeout(() => {
+                            errorCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                        return;
+                    }
+
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
 
@@ -637,12 +864,26 @@
                 // Format and display advice
                 document.getElementById('advice-content').innerHTML = formatAdviceList(data.advice);
 
+                // Format and display similar cases if available
+                const similarCasesContainer = document.getElementById('similar-cases-container');
+                if (data.similar_cases && Object.keys(data.similar_cases).length > 0) {
+                    document.getElementById('similar-cases-content').innerHTML = formatSimilarCases(data.similar_cases);
+                    similarCasesContainer.classList.remove('hidden');
+                } else {
+                    similarCasesContainer.classList.add('hidden');
+                }
+
                 // Format and display summary checklist
                 document.getElementById('summary-content').innerHTML = formatChecklistItems(data.summary);
 
                 // Show results with animation
                 loadingDiv.classList.add('hidden');
                 resultsDiv.classList.remove('hidden');
+
+                // Show all analysis cards for legitimate content
+                errorCard.classList.add('hidden');
+                document.getElementById('analysis-card').classList.remove('hidden');
+                document.querySelectorAll('.result-section').forEach(el => el.classList.remove('hidden'));
 
                 // Scroll to results
                 setTimeout(() => {
@@ -660,6 +901,11 @@
             } finally {
                 submitButton.disabled = false;
             }
+        });
+
+        // Character counter update
+        document.getElementById('user_input').addEventListener('input', function() {
+            document.getElementById('char-count').textContent = this.value.length;
         });
 
         // Auto-focus on textarea
