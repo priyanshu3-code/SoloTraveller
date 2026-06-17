@@ -10,6 +10,9 @@ from groq import Groq
 # Load environment variables from .env file
 load_dotenv()
 
+# Global tracking for token counts during workflow
+workflow_token_counts = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
 # Initialize geocoder (Nominatim - free, no API key required)
 geocoder = Nominatim(user_agent="solotraveller_scam_radar")
 
@@ -636,6 +639,15 @@ def call_llm(prompt, retries=2, model="mistral"):
                 run_tree.metadata["attempt"] = attempt + 1
                 run_tree.metadata["response_length"] = len(result)
                 run_tree.metadata["status"] = "success"
+                # Capture token usage from Groq response
+                if hasattr(response, 'usage'):
+                    run_tree.metadata["prompt_tokens"] = response.usage.prompt_tokens
+                    run_tree.metadata["completion_tokens"] = response.usage.completion_tokens
+                    run_tree.metadata["total_tokens"] = response.usage.total_tokens
+                    # Aggregate tokens globally for workflow-level tracking
+                    workflow_token_counts["prompt_tokens"] += response.usage.prompt_tokens
+                    workflow_token_counts["completion_tokens"] += response.usage.completion_tokens
+                    workflow_token_counts["total_tokens"] += response.usage.total_tokens
 
             return result
         except Exception as e:
@@ -871,6 +883,10 @@ def process_input():
     LLM Call 2 → Generate risk-specific advice (high risk emergency, low risk tips)
     LLM Call 3 → Generate final summary/checklist
     """
+    # Reset token counter at start of workflow
+    global workflow_token_counts
+    workflow_token_counts = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
     try:
         # INPUT VALIDATION
         data = request.get_json()
@@ -1114,6 +1130,14 @@ Examples:
         if similar_cases_response:
             response["similar_cases"] = similar_cases_response
             print(f"[Response] Added similar cases data")
+
+        # Log aggregated token counts to the workflow run
+        run_tree = get_current_run_tree()
+        if run_tree and workflow_token_counts["total_tokens"] > 0:
+            run_tree.metadata["total_prompt_tokens"] = workflow_token_counts["prompt_tokens"]
+            run_tree.metadata["total_completion_tokens"] = workflow_token_counts["completion_tokens"]
+            run_tree.metadata["total_tokens"] = workflow_token_counts["total_tokens"]
+            print(f"[Token Tracking] Total tokens used: {workflow_token_counts['total_tokens']} (Prompt: {workflow_token_counts['prompt_tokens']}, Completion: {workflow_token_counts['completion_tokens']})")
 
         print(f"\n[Workflow Complete] 3 LLM calls (Mistral) + Judge validation (Llama) + Similar Cases matching processed successfully\n")
         return jsonify(response), 200
