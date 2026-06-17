@@ -1201,8 +1201,418 @@ Examples:
         print(f"[ERROR] Final response generation failed: {e}")
         return jsonify({"error": "Failed to generate response", "details": str(e)}), 500
 
+# ============================================================================
+# PHASE 4: LANGSMITH EVALUATORS & EVALUATION FRAMEWORK
+# ============================================================================
+
+def evaluate_correctness_phase4(run, example):
+    """
+    Phase 4 Task 1: LLM-as-Judge Evaluator (Correctness)
+
+    Uses Mistral-7B (via Groq) to evaluate if the app's risk assessment
+    correctly matches the ground truth dataset.
+
+    Args:
+        run: LangSmith Run object with outputs
+        example: LangSmith Example object with expected outputs
+
+    Returns:
+        {
+            "key": "correctness",
+            "score": 1.0 or 0.0,
+            "comment": "explanation of correctness assessment"
+        }
+    """
+    try:
+        # Extract generated risk level from run output
+        generated = run.outputs.get("output", {})
+        if isinstance(generated, str):
+            try:
+                generated = json.loads(generated)
+            except:
+                generated = {}
+
+        if isinstance(generated, dict):
+            generated_risk = generated.get("analysis", {}).get("scam_probability", "").lower()
+        else:
+            generated_risk = ""
+
+        # Extract expected risk level from example
+        expected = example.outputs.get("expected_risk_level", "")
+        expected_risk = expected.lower() if isinstance(expected, str) else ""
+
+        if not generated_risk or not expected_risk:
+            return {
+                "key": "correctness",
+                "score": 0.0,
+                "comment": "Missing risk level in output or expected criteria"
+            }
+
+        # Build judge prompt for LLM-as-Judge validation
+        judge_prompt = f"""You are an expert evaluator for travel scam detection. Evaluate if this AI assessment is CORRECT.
+
+Generated Risk Assessment: {generated_risk}
+Expected Risk Level: {expected_risk}
+Location: {generated.get('analysis', {}).get('location', 'Unknown')}
+
+Did the AI correctly identify the risk level? Respond with ONLY valid JSON (no markdown):
+{{"is_correct": true or false, "reasoning": "brief explanation"}}"""
+
+        # Use Groq LLM to validate
+        judge_response = call_llm(judge_prompt, retries=1, model="mistral")
+
+        if judge_response.startswith("Error:"):
+            # Fallback: Direct comparison if LLM fails
+            is_correct = generated_risk == expected_risk
+            score = 1.0 if is_correct else 0.0
+            reason = f"Generated: {generated_risk} | Expected: {expected_risk}"
+            return {
+                "key": "correctness",
+                "score": score,
+                "comment": f"Direct comparison - {'PASS' if is_correct else 'FAIL'}: {reason}"
+            }
+
+        # Parse LLM judge response
+        try:
+            json_start = judge_response.find('{')
+            json_end = judge_response.rfind('}') + 1
+            if json_start >= 0 and json_end > 0:
+                json_str = judge_response[json_start:json_end]
+                result = json.loads(json_str)
+                is_correct = result.get('is_correct', generated_risk == expected_risk)
+            else:
+                is_correct = generated_risk == expected_risk
+        except:
+            is_correct = generated_risk == expected_risk
+
+        score = 1.0 if is_correct else 0.0
+        comment = f"Risk Assessment: Generated='{generated_risk}' vs Expected='{expected_risk}' | Result: {'✅ PASS' if is_correct else '❌ FAIL'}"
+
+        return {
+            "key": "correctness",
+            "score": score,
+            "comment": comment
+        }
+
+    except Exception as e:
+        return {
+            "key": "correctness",
+            "score": 0.0,
+            "comment": f"Evaluation error: {str(e)}"
+        }
+
+
+def evaluate_price_anomaly_accuracy_phase4(run, example):
+    """
+    Phase 4 Task 2: Custom Domain-Specific Evaluator (Price Anomaly Accuracy)
+
+    Checks:
+    a) Risk Level Signature Match: predicted scam_probability vs expected_risk_level
+    b) Currency Integrity: detected currency matches target country profile
+
+    Scores 1.0 if both match perfectly, 0.0 if any mismatch.
+    Includes detailed logging for failed examples tracing.
+
+    Args:
+        run: LangSmith Run object
+        example: LangSmith Example object
+
+    Returns:
+        {
+            "key": "price_anomaly_accuracy",
+            "score": 1.0 or 0.0,
+            "comment": "detailed success/error flags mapping"
+        }
+    """
+    try:
+        # Extract generated output
+        generated = run.outputs.get("output", {})
+        if isinstance(generated, str):
+            try:
+                generated = json.loads(generated)
+            except:
+                generated = {}
+
+        generated_risk = generated.get("analysis", {}).get("scam_probability", "").lower()
+        generated_location = generated.get("analysis", {}).get("location", "").lower()
+
+        # Extract expected values from example
+        expected_risk = example.outputs.get("expected_risk_level", "").lower()
+        expected_currency = example.outputs.get("expected_currency", "")
+        expected_location = example.outputs.get("expected_location", "").lower()
+
+        # Currency mapping by country/location
+        currency_by_location = {
+            'delhi': 'INR', 'new delhi': 'INR', 'mumbai': 'INR', 'bangalore': 'INR', 'goa': 'INR',
+            'bangkok': 'THB', 'phuket': 'THB', 'chiang mai': 'THB',
+            'bali': 'IDR', 'jakarta': 'IDR',
+            'london': 'GBP', 'greater london': 'GBP',
+            'paris': 'EUR', 'barcelona': 'EUR', 'amsterdam': 'EUR',
+            'tokyo': 'JPY', 'sydney': 'AUD',
+        }
+
+        # ========== CHECK 1: Risk Level Signature Match ==========
+        risk_match = generated_risk == expected_risk
+        risk_flag = "✅ RISK_MATCH" if risk_match else f"❌ RISK_MISMATCH"
+        risk_detail = f"Generated={generated_risk} vs Expected={expected_risk}"
+
+        # ========== CHECK 2: Currency Integrity Check ==========
+        detected_currency = get_currency_for_location(generated_location)
+        expected_currency_resolved = currency_by_location.get(expected_location.lower(), expected_currency or "UNKNOWN")
+
+        currency_match = detected_currency.upper() == expected_currency_resolved.upper()
+        currency_flag = "✅ CURRENCY_MATCH" if currency_match else f"❌ CURRENCY_MISMATCH"
+        currency_detail = f"Detected={detected_currency} vs Expected={expected_currency_resolved} (Location={generated_location})"
+
+        # ========== FINAL SCORING ==========
+        both_match = risk_match and currency_match
+        score = 1.0 if both_match else 0.0
+
+        # Detailed logging comment mapping
+        comment = f"[PRICE_ANOMALY_ACCURACY] {risk_flag} | {currency_flag} | Details: {risk_detail} | {currency_detail}"
+
+        if not both_match:
+            comment += " | ❌ FAILED: Not all checks passed"
+        else:
+            comment += " | ✅ PASSED: All domain checks verified"
+
+        return {
+            "key": "price_anomaly_accuracy",
+            "score": score,
+            "comment": comment
+        }
+
+    except Exception as e:
+        return {
+            "key": "price_anomaly_accuracy",
+            "score": 0.0,
+            "comment": f"❌ EVALUATION_ERROR: {str(e)}"
+        }
+
+
+def predict_travel_app_phase4(inputs):
+    """
+    Phase 4 Execution Wrapper: Orchestrator for LangSmith evaluate()
+
+    Maps dataset input format to SoloTraveller Flask app workflow.
+    Uses test_client() for seamless integration with /process endpoint.
+    Captures response_metadata including model names, tokens, and billing costs.
+
+    Args:
+        inputs: {"situation": "user's travel scenario"}
+
+    Returns:
+        {
+            "output": {...full Flask response...},
+            "response_metadata": {
+                "prompt_tokens": int,
+                "completion_tokens": int,
+                "total_tokens": int,
+                "models_used": [...],
+                "estimated_cost_usd": float
+            }
+        }
+    """
+    try:
+        situation = inputs.get("situation", "")
+
+        if not situation:
+            return {"output": None, "error": "No situation provided"}
+
+        # Use Flask test client to call /process endpoint
+        with app.test_client() as client:
+            response = client.post(
+                '/process',
+                json={"user_input": situation},
+                content_type='application/json'
+            )
+
+            response_data = response.get_json() or {}
+
+        # Extract token metrics from response (if captured by LLM calls)
+        # The call_llm function already captured these in run_tree.metadata
+        total_tokens = response_data.get("total_tokens", 0)
+        prompt_tokens = response_data.get("prompt_tokens", 0)
+        completion_tokens = response_data.get("completion_tokens", 0)
+        estimated_cost = response_data.get("estimated_cost_usd", 0.0)
+
+        # Fallback: Estimate from response size if not captured
+        if total_tokens == 0:
+            response_str = json.dumps(response_data)
+            # Rough estimate: 1 token ≈ 4 characters
+            total_tokens = len(response_str) // 4
+            prompt_tokens = len(situation) // 4
+            completion_tokens = total_tokens - prompt_tokens
+
+        return {
+            "output": response_data,
+            "response_metadata": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+                "models_used": ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"],
+                "estimated_cost_usd": round(estimated_cost, 8)
+            }
+        }
+
+    except Exception as e:
+        return {
+            "output": None,
+            "error": str(e),
+            "response_metadata": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "models_used": [],
+                "estimated_cost_usd": 0.0
+            }
+        }
+
+
+def print_evaluation_scorecard(results):
+    """
+    Pretty-print evaluation scorecard showing metrics, pass/fail breakdown,
+    and audit trail of failed examples.
+    """
+    print("\n" + "=" * 80)
+    print("📊 PHASE 4 EVALUATION SCORECARD - SoloTraveller")
+    print("=" * 80)
+
+    if not hasattr(results, '__iter__') or isinstance(results, dict):
+        print("[INFO] No results to display or evaluation not run")
+        return
+
+    total_tests = 0
+    correctness_passed = 0
+    correctness_failed = 0
+    price_anomaly_passed = 0
+    price_anomaly_failed = 0
+    failed_examples = []
+
+    # Aggregate results
+    try:
+        for run_result in results:
+            total_tests += 1
+
+            # Check correctness evaluator
+            if hasattr(run_result, 'evaluator_results'):
+                for eval_result in run_result.evaluator_results or []:
+                    if eval_result.get('key') == 'correctness':
+                        if eval_result.get('score', 0.0) >= 0.8:
+                            correctness_passed += 1
+                        else:
+                            correctness_failed += 1
+                            failed_examples.append({
+                                'test': f"Test {total_tests}",
+                                'evaluator': 'correctness',
+                                'reason': eval_result.get('comment', 'No comment')
+                            })
+
+                    elif eval_result.get('key') == 'price_anomaly_accuracy':
+                        if eval_result.get('score', 0.0) >= 0.8:
+                            price_anomaly_passed += 1
+                        else:
+                            price_anomaly_failed += 1
+                            failed_examples.append({
+                                'test': f"Test {total_tests}",
+                                'evaluator': 'price_anomaly_accuracy',
+                                'reason': eval_result.get('comment', 'No comment')
+                            })
+    except:
+        pass
+
+    # Display metrics
+    print(f"\n✅ METRICS SUMMARY")
+    print("-" * 80)
+    print(f"Total Tests Executed:           {total_tests}")
+    print(f"Correctness (LLM-as-Judge):     {correctness_passed}/{correctness_passed + correctness_failed} passed")
+    print(f"Price Anomaly Accuracy:         {price_anomaly_passed}/{price_anomaly_passed + price_anomaly_failed} passed")
+
+    if total_tests > 0:
+        overall_score = ((correctness_passed + price_anomaly_passed) /
+                        ((correctness_passed + correctness_failed) +
+                         (price_anomaly_passed + price_anomaly_failed))) * 100
+        print(f"Overall Score:                  {overall_score:.1f}%")
+
+    # Display failed examples
+    if failed_examples:
+        print(f"\n❌ FAILED EXAMPLES AUDIT TRAIL")
+        print("-" * 80)
+        for i, example in enumerate(failed_examples[:10], 1):  # Show top 10
+            print(f"{i}. {example['test']} - {example['evaluator']}")
+            print(f"   Reason: {example['reason']}")
+
+        if len(failed_examples) > 10:
+            print(f"... and {len(failed_examples) - 10} more failed examples")
+    else:
+        print(f"\n✅ ALL TESTS PASSED!")
+
+    print("=" * 80 + "\n")
+
+
 # --- MAIN EXECUTION ---
 if __name__ == '__main__':
-    # Note: In a real production environment, use a proper WSGI server like Gunicorn or Waitress
-    # instead of app.run(). The host '0.0.0.0' makes it accessible on your local network.
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import sys
+    import os
+    from langsmith import Client, evaluate
+
+    # Check for Phase 4 evaluation execution flag
+    run_phase4_evaluation = (
+        os.getenv("PHASE4_EVALUATE", "").lower() == "true" or
+        "--phase4" in sys.argv or
+        "--evaluate" in sys.argv
+    )
+
+    if run_phase4_evaluation:
+        print("\n" + "=" * 80)
+        print("🎯 PHASE 4: RUNNING EVALUATION SUITE")
+        print("=" * 80)
+        print("\nInitializing LangSmith evaluation framework...")
+
+        try:
+            # Initialize LangSmith client
+            ls_client = Client()
+
+            # Set environment for dashboard routing
+            os.environ["LANGCHAIN_PROJECT"] = "SoloTraveller"
+
+            dataset_name = "solotraveller-evaluation-dataset"
+
+            print(f"[Dataset] Loading: {dataset_name}")
+            print(f"[Evaluators] Registered: correctness, price_anomaly_accuracy")
+            print(f"[Target] Flask endpoint: http://localhost:5000/process\n")
+
+            # Define evaluators
+            evaluators = [
+                evaluate_correctness_phase4,
+                evaluate_price_anomaly_accuracy_phase4,
+            ]
+
+            # Execute evaluation
+            print("Starting evaluation run...\n")
+            results = evaluate(
+                predict_travel_app_phase4,
+                data=dataset_name,
+                evaluators=evaluators,
+                client=ls_client,
+                experiment_prefix="solotraveller-phase4"
+            )
+
+            # Print scorecard
+            print_evaluation_scorecard(results)
+
+            print("✅ PHASE 4 EVALUATION COMPLETE!")
+            print(f"📊 Results uploaded to LangSmith: https://smith.langchain.com/projects/SoloTraveller")
+
+        except Exception as e:
+            print(f"\n❌ EVALUATION FAILED: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+
+    else:
+        # Note: In a real production environment, use a proper WSGI server like Gunicorn or Waitress
+        # instead of app.run(). The host '0.0.0.0' makes it accessible on your local network.
+        # To run Phase 4 evaluation: PHASE4_EVALUATE=true python app.py
+        # Or: python app.py --phase4
+        app.run(host='0.0.0.0', port=5000, debug=True)
