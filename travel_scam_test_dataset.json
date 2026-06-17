@@ -1,0 +1,142 @@
+[
+  {
+    "input": "I met a stranger in Delhi who approached me on the street. He said he runs a family gemstone business and offered me incredible deals on emeralds. Quoted 1000 rupees for what he claimed was genuine emerald. Seemed very pushy to close the deal quickly.",
+    "location": "Delhi",
+    "expected_risk": "HIGH",
+    "scam_type": "gem_shop",
+    "expected_advice_theme": "avoid_gem_shops_escape"
+  },
+  {
+    "input": "Taxi driver in Mumbai wants 500 rupees for a 2km ride. The meter shows only 80 rupees would be fair. Driver is demanding I pay his quoted price.",
+    "location": "Mumbai",
+    "expected_risk": "HIGH",
+    "scam_type": "taxi_overpriced",
+    "expected_advice_theme": "use_meter_or_uber"
+  },
+  {
+    "input": "In Bangkok, a tuk-tuk driver offered to take me to a tourist destination. Said it would cost 500 baht. Then tried to take me to gem shops and tailor shops instead, wanting commission.",
+    "location": "Bangkok",
+    "expected_risk": "HIGH",
+    "scam_type": "tuk_tuk_scam",
+    "expected_advice_theme": "avoid_redirects"
+  },
+  {
+    "input": "A local restaurant in London showed me a menu with fish and chips for 25 pounds. Similar restaurants nearby charge 8-12 pounds for the same dish.",
+    "location": "London",
+    "expected_risk": "HIGH",
+    "scam_type": "tourist_trap_restaurant",
+    "expected_advice_theme": "restaurant_negotiation"
+  },
+  {
+    "input": "In Goa, a beach vendor is selling fake branded sunglasses for 2000 rupees. Real ones cost 300-500 rupees at the market.",
+    "location": "Goa",
+    "expected_risk": "HIGH",
+    "scam_type": "fake_goods",
+    "expected_advice_theme": "avoid_counterfeit"
+  },
+  {
+    "input": "Tour guide in Phuket quoted 5000 baht per person for a snorkeling tour. Similar tours online are 800-1200 baht.",
+    "location": "Phuket",
+    "expected_risk": "HIGH",
+    "scam_type": "tour_overpriced",
+    "expected_advice_theme": "negotiate_tour_price"
+  },
+  {
+    "input": "A street vendor in Bangkok is selling bottled water for 100 baht. Normal convenience stores sell it for 12-15 baht.",
+    "location": "Bangkok",
+    "expected_risk": "HIGH",
+    "scam_type": "water_overpriced",
+    "expected_advice_theme": "carry_own_water"
+  },
+  {
+    "input": "In Paris, a street vendor offered me a luxury bracelet for 50 euros. It looks very cheap quality.",
+    "location": "Paris",
+    "expected_risk": "HIGH",
+    "scam_type": "street_vendor",
+    "expected_advice_theme": "ignore_street_vendors"
+  },
+  {
+    "input": "A restaurant in Bali quoted 400000 rupees for nasi goreng. Local warungs charge 25000-40000 rupees.",
+    "location": "Bali",
+    "expected_risk": "HIGH",
+    "scam_type": "overpriced_restaurant",
+    "expected_advice_theme": "eat_where_locals_eat"
+  },
+  {
+    "input": "In Tokyo, a restaurant advertised sushi for 8000 yen per plate. Average sushi restaurants charge 2000-4000 yen.",
+    "location": "Tokyo",
+    "expected_risk": "HIGH",
+    "scam_type": "overpriced_restaurant",
+    "expected_advice_theme": "verify_prices_before_eating"
+  },
+  {
+    "input": "A local in Delhi told me about a tailor who can make custom suits for 5000 rupees. He is pushing me to pay upfront.",
+    "location": "Delhi",
+    "expected_risk": "HIGH",
+    "scam_type": "custom_goods_scam",
+    "expected_advice_theme": "never_prepay"
+  },
+  {
+    "input": "I am at a cafe in Bangkok. The menu showed 150 baht for coffee. When I got the bill, it was 800 baht with mysterious charges.",
+    "location": "Bangkok",
+    "expected_risk": "HIGH",
+    "scam_type": "hidden_charges",
+    "expected_advice_theme": "confirm_prices"
+  },
+  {
+    "input": "A street vendor in Mumbai is offering me marked-up souvenirs for 200 rupees. Similar items in shops are 50-80 rupees.",
+    "location": "Mumbai",
+    "expected_risk": "LOW",
+    "scam_type": "tourist_markup",
+    "expected_advice_theme": "negotiate_calmly"
+  },
+  {
+    "input": "A local restaurant in Goa quoted 400 rupees for lunch. This seems fair based on the menu quality and location.",
+    "location": "Goa",
+    "expected_risk": "LOW",
+    "scam_type": "fair_pricing",
+    "expected_advice_theme": "enjoy_meal"
+  },
+  {
+    "input": "A tour operator in Bangkok quoted 1200 baht for a full-day city tour. This matches online prices from reputable operators.",
+    "location": "Bangkok",
+    "expected_risk": "LOW",
+    "scam_type": "legitimate_tour",
+    "expected_advice_theme": "verify_operator"
+  },
+  {
+    "input": "A cafe in London charged 6 pounds for a coffee and sandwich. Nearby chains charge similar prices.",
+    "location": "London",
+    "expected_risk": "LOW",
+    "scam_type": "fair_cafe_pricing",
+    "expected_advice_theme": "enjoy_meal"
+  },
+  {
+    "input": "A local shop in Sydney quoted 30 AUD for a souvenir. It is a quality item and price seems reasonable.",
+    "location": "Sydney",
+    "expected_risk": "LOW",
+    "scam_type": "fair_souvenir",
+    "expected_advice_theme": "bargain_politely"
+  },
+  {
+    "input": "Someone offered me a ride to the airport for 3000 rupees. Standard Uber price is 2800 rupees.",
+    "location": "Delhi",
+    "expected_risk": "LOW",
+    "scam_type": "slight_markup",
+    "expected_advice_theme": "use_official_apps"
+  },
+  {
+    "input": "A massage parlor in Bangkok quoted 300 baht. Legitimate spas in the area charge 250-350 baht.",
+    "location": "Bangkok",
+    "expected_risk": "LOW",
+    "scam_type": "fair_service",
+    "expected_advice_theme": "verify_legitimacy"
+  },
+  {
+    "input": "I am looking at a branded watch in a shop in Paris for 200 euros. Cannot tell if it is real or counterfeit without expertise.",
+    "location": "Paris",
+    "expected_risk": "MEDIUM",
+    "scam_type": "counterfeit_luxury",
+    "expected_advice_theme": "buy_from_official_stores"
+  }
+]
