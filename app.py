@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 from geopy.geocoders import Nominatim
 import time
+from langsmith import get_current_run_tree, traceable
 
 # Load environment variables from .env file
 load_dotenv()
@@ -97,6 +98,7 @@ SIMILAR_CASES_DATA = {
 # --- FLASK APP SETUP ---
 app = Flask(__name__)
 
+@traceable(name="similar_cases_lookup")
 def find_similar_cases(location, situation_text):
     """
     Find similar scam cases from database based on location and situation type.
@@ -206,7 +208,7 @@ def format_similar_cases_response(similar_cases):
         'currency': currency,
         'case_types': case_types_formatted
     }
-
+@traceable(name="location_extraction")
 def extract_location(text):
     """
     Extract location from text using Nominatim API (OpenStreetMap).
@@ -275,6 +277,7 @@ def extract_location(text):
 
     return 'Unknown'
 
+@traceable(name="price_anomaly_detection")
 def detect_price_anomaly(situation_text, detected_location='Unknown'):
     """
     Detect if prices in the situation are normal or inflated across multiple countries.
@@ -595,7 +598,18 @@ def generate_fallback_response(prompt_type, situation, location, risk_level=None
 network_error_detected = [False]
 
 # --- HUGGING FACE API HELPER ---
+@traceable(name="llm_call")
 def call_llm(prompt, retries=2, model="mistral"):
+
+    run_tree = get_current_run_tree()
+
+    if run_tree:
+        run_tree.metadata["provider"] = "huggingface"
+
+        if model.lower() == "llama":
+            run_tree.metadata["model"] = "Llama-2-70B"
+        else:
+            run_tree.metadata["model"] = "Mistral-7B"
     """
     Calls the Hugging Face Inference API with a given prompt.
 
@@ -635,6 +649,7 @@ def call_llm(prompt, retries=2, model="mistral"):
                     print("[INFO] Network error detected - using fallback responses")
                 return f"Error: LLM call failed after {retries} attempts. Details: {e}"
 
+@traceable(name="content_moderation")
 def moderate_content(user_input):
     """
     Moderate user input for harmful, unsafe, and toxic content.
@@ -775,6 +790,7 @@ Examples:
     except Exception:
         return {'is_safe': True, 'reason': 'Check error', 'score': 0.0}
 
+@traceable(name="judge_validation")
 def judge_analysis(analysis_result, advice_text, summary_text, location):
     """
     Use Llama-2-70b as a judge to validate Mistral's analysis.
@@ -835,6 +851,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
+@traceable(name="travel_scam_workflow")
 def process_input():
     """
     3-LLM AI Workflow:
