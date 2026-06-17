@@ -1,10 +1,11 @@
 import os
-import httpx
 import json
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 from geopy.geocoders import Nominatim
 import time
+from langsmith import get_current_run_tree, traceable
+from groq import Groq
 
 # Load environment variables from .env file
 load_dotenv()
@@ -13,22 +14,21 @@ load_dotenv()
 geocoder = Nominatim(user_agent="solotraveller_scam_radar")
 
 # --- CONFIGURATION ---
-# IMPORTANT: Add your Hugging Face API token here.
-# You can get a token from https://huggingface.co/settings/tokens
-HF_API_TOKEN = os.getenv("HF_API_TOKEN", "YOUR_HUGGINGFACE_API_TOKEN_HERE")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY_HERE")
 
-# LLM 1: Mistral-7B for main analysis work
-HF_API_URL_MISTRAL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
+# Initialize Groq client
+groq_client = Groq(api_key=GROQ_API_KEY)
 
-# LLM 2: Llama-2-70b for judging/validating results
-HF_API_URL_LLAMA = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-70b-chat-hf"
+# LLM models via Groq (compatible models)
+MISTRAL_MODEL = "openai/gpt-oss-120b"       # GPT-OSS-120B for main analysis
+LLAMA_MODEL = "llama-3.3-70b-versatile"     # Llama-3.3-70B for judging
 
 # Verify token is set
-if HF_API_TOKEN == "YOUR_HUGGINGFACE_API_TOKEN_HERE":
-    print("[WARNING] HF_API_TOKEN not set! Get one from: https://huggingface.co/settings/tokens")
+if GROQ_API_KEY == "YOUR_GROQ_API_KEY_HERE":
+    print("[WARNING] GROQ_API_KEY not set! Get one from: https://console.groq.com")
 else:
-    print(f"[OK] HF_API_TOKEN loaded: {HF_API_TOKEN[:10]}...")
-    print(f"[OK] Using 2 LLMs: Mistral-7B (analysis) + Llama-2-70b (judge)")
+    print(f"[OK] GROQ_API_KEY loaded: {GROQ_API_KEY[:10]}...")
+    print(f"[OK] Using 2 LLMs: GPT-OSS-120B (analysis) + Llama-3.3-70B (judge)")
 
 # --- SIMILAR CASES DATABASE ---
 _DELHI_CASES = [
@@ -595,9 +595,10 @@ def generate_fallback_response(prompt_type, situation, location, risk_level=None
 network_error_detected = [False]
 
 # --- HUGGING FACE API HELPER ---
+@traceable(name="llm_call")
 def call_llm(prompt, retries=2, model="mistral"):
     """
-    Calls the Hugging Face Inference API with a given prompt.
+    Calls Groq API with the specified model.
 
     Args:
         prompt (str): The prompt to send to the model.
@@ -607,23 +608,40 @@ def call_llm(prompt, retries=2, model="mistral"):
     Returns:
         str: The generated text from the model, or fallback response.
     """
-    # Select the appropriate API URL based on model
-    api_url = HF_API_URL_LLAMA if model.lower() == "llama" else HF_API_URL_MISTRAL
+    start_time = time.time()
+    run_tree = get_current_run_tree()
+    model_name = "Llama-3.3-70B" if model.lower() == "llama" else "GPT-OSS-120B"
+    selected_model = LLAMA_MODEL if model.lower() == "llama" else MISTRAL_MODEL
 
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-    payload = {"inputs": prompt, "options": {"wait_for_model": True}}
+    if run_tree:
+        run_tree.metadata["provider"] = "groq"
+        run_tree.metadata["model"] = model_name
+        run_tree.metadata["prompt_length"] = len(prompt)
+        run_tree.metadata["max_retries"] = retries
 
     for attempt in range(retries):
         try:
-            with httpx.Client(timeout=30.0) as client:
-                response = client.post(api_url, headers=headers, json=payload)
-                response.raise_for_status()
-                network_error_detected[0] = False
-                return response.json()[0]['generated_text']
+            response = groq_client.chat.completions.create(
+                model=selected_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1024
+            )
+
+            result = response.choices[0].message.content
+            network_error_detected[0] = False
+            elapsed_time = time.time() - start_time
+
+            if run_tree:
+                run_tree.metadata["latency_seconds"] = elapsed_time
+                run_tree.metadata["attempt"] = attempt + 1
+                run_tree.metadata["response_length"] = len(result)
+                run_tree.metadata["status"] = "success"
+
+            return result
         except Exception as e:
             error_str = str(e).lower()
             is_network_error = any(x in error_str for x in ['errno 11001', 'getaddrinfo', 'host is unknown',
-                                                             'connection refused', 'network unreachable'])
+                                                             'connection refused', 'network unreachable', 'timeout'])
 
             print(f"[Attempt {attempt + 1}] Error: {type(e).__name__}: {e}")
 
@@ -631,14 +649,23 @@ def call_llm(prompt, retries=2, model="mistral"):
                 network_error_detected[0] = True
 
             if attempt + 1 == retries:
+                elapsed_time = time.time() - start_time
+                if run_tree:
+                    run_tree.metadata["latency_seconds"] = elapsed_time
+                    run_tree.metadata["attempt"] = attempt + 1
+                    run_tree.metadata["status"] = "failed"
+                    run_tree.metadata["error_type"] = type(e).__name__
+                    run_tree.metadata["error_message"] = str(e)
+
                 if network_error_detected[0]:
                     print("[INFO] Network error detected - using fallback responses")
                 return f"Error: LLM call failed after {retries} attempts. Details: {e}"
 
+@traceable(name="content_moderation")
 def moderate_content(user_input):
     """
     Moderate user input for harmful, unsafe, and toxic content.
-    Uses pattern-based detection (Tier 1) + Llama-2-70b (Tier 2) to detect:
+    Uses pattern-based detection (Tier 1) + Llama-3.3-70B (Tier 2) to detect:
     - Harmful/violent language
     - Toxicity and hate speech
     - Requests to help with scams or illegal activities
@@ -835,6 +862,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
+@traceable(name="travel_scam_workflow")
 def process_input():
     """
     3-LLM AI Workflow:
