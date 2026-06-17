@@ -14,22 +14,22 @@ load_dotenv()
 geocoder = Nominatim(user_agent="solotraveller_scam_radar")
 
 # --- CONFIGURATION ---
-# IMPORTANT: Add your Hugging Face API token here.
-# You can get a token from https://huggingface.co/settings/tokens
-HF_API_TOKEN = os.getenv("HF_API_TOKEN", "YOUR_HUGGINGFACE_API_TOKEN_HERE")
+# Groq API configuration
+GROQ_API_TOKEN = os.getenv("GROQ_API_TOKEN", "YOUR_GROQ_API_TOKEN_HERE")
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# LLM 1: Mistral-7B for main analysis work
-HF_API_URL_MISTRAL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
+# LLM 1: Llama 3.1 8B for main analysis work (faster)
+GROQ_MODEL_ANALYSIS = "llama-3.1-8b-instant"
 
-# LLM 2: Llama-2-70b for judging/validating results
-HF_API_URL_LLAMA = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-70b-chat-hf"
+# LLM 2: Llama 3.3 70B for judging/validating results (more thorough)
+GROQ_MODEL_JUDGE = "llama-3.3-70b-versatile"
 
 # Verify token is set
-if HF_API_TOKEN == "YOUR_HUGGINGFACE_API_TOKEN_HERE":
-    print("[WARNING] HF_API_TOKEN not set! Get one from: https://huggingface.co/settings/tokens")
+if GROQ_API_TOKEN == "YOUR_GROQ_API_TOKEN_HERE":
+    print("[WARNING] GROQ_API_TOKEN not set! Get one from: https://console.groq.com")
 else:
-    print(f"[OK] HF_API_TOKEN loaded: {HF_API_TOKEN[:10]}...")
-    print(f"[OK] Using 2 LLMs: Mistral-7B (analysis) + Llama-2-70b (judge)")
+    print(f"[OK] GROQ_API_TOKEN loaded: {GROQ_API_TOKEN[:10]}...")
+    print(f"[OK] Using 2 LLMs: Mixtral-8x7b (analysis) + Llama-2-70b (judge)")
 
 # --- SIMILAR CASES DATABASE ---
 _DELHI_CASES = [
@@ -597,57 +597,141 @@ def generate_fallback_response(prompt_type, situation, location, risk_level=None
 # Track network errors globally
 network_error_detected = [False]
 
-# --- HUGGING FACE API HELPER ---
+# --- GROQ API HELPER ---
 @traceable(name="llm_call")
 def call_llm(prompt, retries=2, model="mistral"):
-
-    run_tree = get_current_run_tree()
-
-    if run_tree:
-        run_tree.metadata["provider"] = "huggingface"
-
-        if model.lower() == "llama":
-            run_tree.metadata["model"] = "Llama-2-70B"
-        else:
-            run_tree.metadata["model"] = "Mistral-7B"
     """
-    Calls the Hugging Face Inference API with a given prompt.
+    Calls the Groq API with a given prompt.
 
     Args:
         prompt (str): The prompt to send to the model.
         retries (int): Number of times to retry on failure.
-        model (str): Which model to use - "mistral" or "llama" (default: "mistral")
+        model (str): Which model to use - "mistral" or "llama"
 
     Returns:
-        str: The generated text from the model, or fallback response.
+        str: Generated response from the model.
     """
-    # Select the appropriate API URL based on model
-    api_url = HF_API_URL_LLAMA if model.lower() == "llama" else HF_API_URL_MISTRAL
 
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-    payload = {"inputs": prompt, "options": {"wait_for_model": True}}
+    run_tree = get_current_run_tree()
+
+    # Select model
+    model_name = (
+        GROQ_MODEL_JUDGE
+        if model.lower() == "llama"
+        else GROQ_MODEL_ANALYSIS
+    )
+
+    # LangSmith metadata
+    if run_tree:
+        run_tree.metadata["provider"] = "groq"
+        run_tree.metadata["model"] = model_name
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": model_name,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.7,
+        "max_tokens": 1024
+    }
 
     for attempt in range(retries):
         try:
             with httpx.Client(timeout=30.0) as client:
-                response = client.post(api_url, headers=headers, json=payload)
+                response = client.post(
+                    GROQ_API_URL,
+                    headers=headers,
+                    json=payload
+                )
+
                 response.raise_for_status()
+
                 network_error_detected[0] = False
-                return response.json()[0]['generated_text']
+
+                result = response.json()
+
+                # --------------------------
+                # Capture token usage
+                # --------------------------
+                if run_tree and "usage" in result:
+                    usage = result["usage"]
+
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    total_tokens = usage.get("total_tokens", 0)
+
+                    run_tree.metadata["input_tokens"] = prompt_tokens
+                    run_tree.metadata["output_tokens"] = completion_tokens
+                    run_tree.metadata["total_tokens"] = total_tokens
+
+                    # Optional cost estimate
+                    try:
+                        if "70b" in model_name.lower():
+                            input_cost_per_million = 0.59
+                            output_cost_per_million = 0.79
+                        else:
+                            input_cost_per_million = 0.05
+                            output_cost_per_million = 0.08
+
+                        estimated_cost = (
+                            (prompt_tokens / 1_000_000)
+                            * input_cost_per_million
+                            +
+                            (completion_tokens / 1_000_000)
+                            * output_cost_per_million
+                        )
+
+                        run_tree.metadata["estimated_cost_usd"] = round(
+                            estimated_cost,
+                            8
+                        )
+
+                    except Exception:
+                        pass
+
+                return result["choices"][0]["message"]["content"]
+
         except Exception as e:
             error_str = str(e).lower()
-            is_network_error = any(x in error_str for x in ['errno 11001', 'getaddrinfo', 'host is unknown',
-                                                             'connection refused', 'network unreachable'])
 
-            print(f"[Attempt {attempt + 1}] Error: {type(e).__name__}: {e}")
+            is_network_error = any(
+                x in error_str
+                for x in [
+                    "errno 11001",
+                    "getaddrinfo",
+                    "host is unknown",
+                    "connection refused",
+                    "network unreachable"
+                ]
+            )
+
+            print(
+                f"[Attempt {attempt + 1}] "
+                f"Error: {type(e).__name__}: {e}"
+            )
 
             if is_network_error:
                 network_error_detected[0] = True
 
             if attempt + 1 == retries:
                 if network_error_detected[0]:
-                    print("[INFO] Network error detected - using fallback responses")
-                return f"Error: LLM call failed after {retries} attempts. Details: {e}"
+                    print(
+                        "[INFO] Network error detected - "
+                        "using fallback responses"
+                    )
+
+                return (
+                    f"Error: LLM call failed after "
+                    f"{retries} attempts. Details: {e}"
+                )
 
 @traceable(name="content_moderation")
 def moderate_content(user_input):
@@ -890,6 +974,12 @@ def process_input():
 
     all_raw_responses = {}
     prompt1 = f"""You are a HIGHLY CAUTIOUS expert in detecting travel scams targeting solo travelers. Your job is to protect travelers from financial loss.
+
+    Price Analysis:
+FAIR - normal market price
+
+Use this information when determining risk.
+If price is FAIR, do not classify as High Risk unless other strong scam indicators exist.
 
 CRITICAL RED FLAGS - BE VERY STRICT:
 1. Unsolicited approach by stranger (HIGH RISK by default)
