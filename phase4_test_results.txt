@@ -2,69 +2,21 @@
 PHASE 4 EVALUATION TEST RUN - DETAILED REPORT
 ====================================================================================================
 
-Timestamp: 2026-06-18 08:13:34.181780
+Timestamp: 2026-06-18 12:25:57.534177
 Total Tests: 15
-Passed: 2
-Failed: 13
-Pass Rate: 13.3%
+Passed: 14
+Failed: 1
+Pass Rate: 93.3%
 
 LATENCY SUMMARY:
-  Total Time: 12115.40ms
-  Mean: 6057.70ms
-  Median: 6057.70ms
-  Min: 6055.13ms
-  Max: 6060.27ms
+  Total Time: 141944.87ms
+  Mean: 9462.99ms
+  Median: 11400.08ms
+  Min: 2030.40ms
+  Max: 12065.68ms
 
 FAILED TESTS:
 
-- Test 1.3: London Booking.com (Low Risk)
-  Expected: Low
-  Generated: ERROR
-
-- Test 2.1: Abbreviated Currency (1.5k USD) - FAILS
-  Expected: High
-  Generated: ERROR
-
 - Test 2.2: Currency Mismatch (LKR) - FAILS
-  Expected: Low
-  Generated: ERROR
-
-- Test 2.3: Decimal Prices (EUR)
-  Expected: High
-  Generated: ERROR
-
-- Test 2.4: No Prices Mentioned
-  Expected: High
-  Generated: ERROR
-
-- Test 3.1: IGNORE Override Injection - FAILS
-  Expected: High
-  Generated: ERROR
-
-- Test 3.2: Role-Play Injection - FAILS
-  Expected: High
-  Generated: ERROR
-
-- Test 4.1: Minor Currency (PKR)
-  Expected: High
-  Generated: ERROR
-
-- Test 4.2: Regional Variant (New Delhi)
-  Expected: High
-  Generated: ERROR
-
-- Test 5.1: Specific Case Match (Tuk-Tuk Only)
-  Expected: High
-  Generated: ERROR
-
-- Test 5.2: Ambiguous Multi-Type Match
-  Expected: High
-  Generated: ERROR
-
-- Test 6.1: HIGH RISK Emergency Advice
-  Expected: High
-  Generated: ERROR
-
-- Test 6.2: LOW RISK Encouragement Advice
-  Expected: Low
-  Generated: ERROR
+  Expected: low
+  Generated: high
