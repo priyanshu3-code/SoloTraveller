@@ -597,6 +597,20 @@ def generate_fallback_response(prompt_type, situation, location, risk_level=None
 # Track network errors globally
 network_error_detected = [False]
 
+# Track aggregated usage for LangSmith native metrics
+aggregated_usage = {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "estimated_cost_usd": 0.0
+}
+
+# Track errors for native error rate calculation
+execution_errors = {
+    "error_count": 0,
+    "total_executions": 0
+}
+
 # --- GROQ API HELPER ---
 @traceable(name="llm_call")
 def call_llm(prompt, retries=2, model="mistral"):
@@ -645,6 +659,9 @@ def call_llm(prompt, retries=2, model="mistral"):
 
     for attempt in range(retries):
         try:
+            # Track latency
+            llm_start_time = time.time()
+
             with httpx.Client(timeout=30.0) as client:
                 response = client.post(
                     GROQ_API_URL,
@@ -654,50 +671,60 @@ def call_llm(prompt, retries=2, model="mistral"):
 
                 response.raise_for_status()
 
-                network_error_detected[0] = False
+            llm_end_time = time.time()
+            llm_latency_ms = (llm_end_time - llm_start_time) * 1000
 
-                result = response.json()
+            network_error_detected[0] = False
 
-                # --------------------------
-                # Capture token usage
-                # --------------------------
-                if run_tree and "usage" in result:
-                    usage = result["usage"]
+            result = response.json()
 
-                    prompt_tokens = usage.get("prompt_tokens", 0)
-                    completion_tokens = usage.get("completion_tokens", 0)
-                    total_tokens = usage.get("total_tokens", 0)
+            # --------------------------
+            # Capture token usage & latency
+            # --------------------------
+            prompt_tokens = 0
+            completion_tokens = 0
+            total_tokens = 0
+            estimated_cost = 0.0
 
-                    run_tree.metadata["input_tokens"] = prompt_tokens
-                    run_tree.metadata["output_tokens"] = completion_tokens
-                    run_tree.metadata["total_tokens"] = total_tokens
+            if "usage" in result:
+                usage = result["usage"]
 
-                    # Optional cost estimate
-                    try:
-                        if "70b" in model_name.lower():
-                            input_cost_per_million = 0.59
-                            output_cost_per_million = 0.79
-                        else:
-                            input_cost_per_million = 0.05
-                            output_cost_per_million = 0.08
+                prompt_tokens = usage.get("prompt_tokens", 0)
+                completion_tokens = usage.get("completion_tokens", 0)
+                total_tokens = usage.get("total_tokens", 0)
 
-                        estimated_cost = (
-                            (prompt_tokens / 1_000_000)
-                            * input_cost_per_million
-                            +
-                            (completion_tokens / 1_000_000)
-                            * output_cost_per_million
-                        )
+                # Update aggregated usage for LangSmith native tracking
+                aggregated_usage["input_tokens"] += prompt_tokens
+                aggregated_usage["output_tokens"] += completion_tokens
+                aggregated_usage["total_tokens"] += total_tokens
 
-                        run_tree.metadata["estimated_cost_usd"] = round(
-                            estimated_cost,
-                            8
-                        )
+                # Cost estimate
+                try:
+                    if "70b" in model_name.lower():
+                        input_cost_per_million = 0.59
+                        output_cost_per_million = 0.79
+                    else:
+                        input_cost_per_million = 0.05
+                        output_cost_per_million = 0.08
 
-                    except Exception:
-                        pass
+                    estimated_cost = (
+                        (prompt_tokens / 1_000_000)
+                        * input_cost_per_million
+                        +
+                        (completion_tokens / 1_000_000)
+                        * output_cost_per_million
+                    )
 
-                return result["choices"][0]["message"]["content"]
+                    aggregated_usage["estimated_cost_usd"] += estimated_cost
+
+                except Exception:
+                    pass
+
+            # Store latency only - aggregate metrics at workflow level
+            if run_tree:
+                run_tree.metadata["llm_latency_ms"] = round(llm_latency_ms, 2)
+
+            return result["choices"][0]["message"]["content"]
 
         except Exception as e:
             error_str = str(e).lower()
@@ -722,16 +749,23 @@ def call_llm(prompt, retries=2, model="mistral"):
                 network_error_detected[0] = True
 
             if attempt + 1 == retries:
+                # Track error for native LangSmith error rate tracking
+                execution_errors["error_count"] += 1
+                execution_errors["total_executions"] += 1
+
+                # Store error in LangSmith metadata
+                if run_tree:
+                    run_tree.metadata["error"] = str(e)
+                    run_tree.metadata["error_type"] = type(e).__name__
+
                 if network_error_detected[0]:
                     print(
                         "[INFO] Network error detected - "
                         "using fallback responses"
                     )
 
-                return (
-                    f"Error: LLM call failed after "
-                    f"{retries} attempts. Details: {e}"
-                )
+                # Raise the exception so LangSmith traces it natively
+                raise Exception(f"LLM call failed after {retries} attempts: {e}") from e
 
 @traceable(name="content_moderation")
 def moderate_content(user_input):
@@ -944,6 +978,23 @@ def process_input():
     LLM Call 2 → Generate risk-specific advice (high risk emergency, low risk tips)
     LLM Call 3 → Generate final summary/checklist
     """
+    # Reset aggregated usage for this workflow
+    global aggregated_usage, execution_errors
+    aggregated_usage = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost_usd": 0.0
+    }
+    execution_errors = {
+        "error_count": 0,
+        "total_executions": 0
+    }
+
+    # Track overall latency
+    workflow_start_time = time.time()
+    run_tree = get_current_run_tree()
+
     try:
         # INPUT VALIDATION
         data = request.get_json()
@@ -1173,6 +1224,43 @@ Examples:
 
     judge_result = judge_analysis(analysis_result, advice_text, summary_text, location)
 
+    # Calculate overall latency
+    workflow_end_time = time.time()
+    total_latency_ms = (workflow_end_time - workflow_start_time) * 1000
+
+    # ========================================================================
+    # LANGSMITH METRICS BINDING - Set directly on run_tree
+    # ========================================================================
+    # Critical: Set metrics BEFORE span closes to ensure persistence
+
+    run_tree = get_current_run_tree()
+
+    if run_tree:
+        # Calculate error percentage
+        total_executions = execution_errors["total_executions"]
+        error_percentage = (execution_errors["error_count"] / total_executions * 100) if total_executions > 0 else 0.0
+
+        # ✅ Set metrics directly on run_tree.metadata
+        # These keys are EXACTLY what LangSmith dashboard charts read
+        run_tree.metadata["input_tokens"] = int(aggregated_usage["input_tokens"])
+        run_tree.metadata["output_tokens"] = int(aggregated_usage["output_tokens"])
+        run_tree.metadata["estimated_cost_usd"] = round(aggregated_usage["estimated_cost_usd"], 8)
+        run_tree.metadata["error_rate"] = round(error_percentage, 2)
+        run_tree.metadata["execution_count"] = total_executions
+        run_tree.metadata["error_count"] = execution_errors["error_count"]
+        run_tree.metadata["total_latency_ms"] = round(total_latency_ms, 2)
+
+        # Also set nested structure for completeness
+        run_tree.metadata["usage_metadata"] = {
+            "input_tokens": int(aggregated_usage["input_tokens"]),
+            "output_tokens": int(aggregated_usage["output_tokens"]),
+        }
+
+        print(f"[METRICS] Set on span: in={run_tree.metadata['input_tokens']} "
+              f"out={run_tree.metadata['output_tokens']} "
+              f"cost=${run_tree.metadata['estimated_cost_usd']:.6f} "
+              f"error={run_tree.metadata['error_rate']}%")
+
     # FINAL RESPONSE with validation
     try:
         response = {
@@ -1186,6 +1274,17 @@ Examples:
                 "advice_valid": judge_result['advice_valid'],
                 "summary_valid": judge_result['summary_valid'],
                 "feedback": judge_result['feedback']
+            },
+            "latency_ms": round(total_latency_ms, 2),
+            "metrics": {
+                "input_tokens": aggregated_usage["input_tokens"],
+                "output_tokens": aggregated_usage["output_tokens"],
+                "total_tokens": aggregated_usage["total_tokens"],
+                "total_cost_usd": round(aggregated_usage["estimated_cost_usd"], 8),
+                "error_count": execution_errors["error_count"],
+                "error_rate_percent": round(
+                    (execution_errors["error_count"] / max(execution_errors["total_executions"], 1)) * 100, 2
+                ) if execution_errors["total_executions"] > 0 else 0.0
             }
         }
 
@@ -1194,7 +1293,45 @@ Examples:
             response["similar_cases"] = similar_cases_response
             print(f"[Response] Added similar cases data")
 
-        print(f"\n[Workflow Complete] 3 LLM calls (Mistral) + Judge validation (Llama) + Similar Cases matching processed successfully\n")
+        print(f"\n[Workflow Complete] Total latency: {total_latency_ms:.2f}ms ({total_latency_ms/1000:.2f}s)")
+        print(f"[Metrics] Input: {aggregated_usage['input_tokens']} tokens | Output: {aggregated_usage['output_tokens']} tokens | Cost: ${aggregated_usage['estimated_cost_usd']:.8f}")
+        print(f"[Metrics] Errors: {execution_errors['error_count']} | Error rate: {round((execution_errors['error_count'] / max(execution_errors['total_executions'], 1)) * 100, 2)}%")
+        print(f"[Workflow Complete] 3 LLM calls (Mistral) + Judge validation (Llama) + Similar Cases matching processed successfully\n")
+
+        # ✅ CRITICAL: Persist metrics to LangSmith BEFORE returning
+        # This ensures metrics are saved even if span closes during response
+        if run_tree:
+            try:
+                from langsmith import Client
+                import datetime as dt
+
+                # Build complete metadata payload
+                metadata_payload = run_tree.metadata.copy()
+                metadata_payload.update({
+                    "input_tokens": int(aggregated_usage["input_tokens"]),
+                    "output_tokens": int(aggregated_usage["output_tokens"]),
+                    "estimated_cost_usd": round(aggregated_usage["estimated_cost_usd"], 8),
+                    "error_rate": round((execution_errors["error_count"] / max(execution_errors["total_executions"], 1)) * 100, 2),
+                    "execution_count": execution_errors["total_executions"],
+                    "error_count": execution_errors["error_count"],
+                    "total_latency_ms": round(total_latency_ms, 2),
+                    "usage_metadata": {
+                        "input_tokens": int(aggregated_usage["input_tokens"]),
+                        "output_tokens": int(aggregated_usage["output_tokens"]),
+                    }
+                })
+
+                client = Client()
+                # Use patch_run to update WITHOUT closing the run
+                client.update_run(
+                    run_tree.id,
+                    metadata=metadata_payload,
+                    end_time=None  # Don't end yet
+                )
+                print(f"[PERSIST] Run {run_tree.id[:12]}... metrics updated")
+            except Exception as e:
+                print(f"[PERSIST] Warning: {str(e)[:80]}")
+
         return jsonify(response), 200
 
     except Exception as e:
@@ -1205,6 +1342,7 @@ Examples:
 # PHASE 4: LANGSMITH EVALUATORS & EVALUATION FRAMEWORK
 # ============================================================================
 
+@traceable(name="evaluate_correctness")
 def evaluate_correctness_phase4(run, example):
     """
     Phase 4 Task 1: LLM-as-Judge Evaluator (Correctness)
@@ -1223,6 +1361,8 @@ def evaluate_correctness_phase4(run, example):
             "comment": "explanation of correctness assessment"
         }
     """
+    eval_start = time.time()
+
     try:
         # Extract generated risk level from run output
         generated = run.outputs.get("output", {})
@@ -1288,6 +1428,12 @@ Did the AI correctly identify the risk level? Respond with ONLY valid JSON (no m
         score = 1.0 if is_correct else 0.0
         comment = f"Risk Assessment: Generated='{generated_risk}' vs Expected='{expected_risk}' | Result: {'✅ PASS' if is_correct else '❌ FAIL'}"
 
+        # Track latency in evaluator span
+        eval_latency = (time.time() - eval_start) * 1000
+        eval_run_tree = get_current_run_tree()
+        if eval_run_tree:
+            eval_run_tree.metadata["latency_ms"] = round(eval_latency, 2)
+
         return {
             "key": "correctness",
             "score": score,
@@ -1295,6 +1441,13 @@ Did the AI correctly identify the risk level? Respond with ONLY valid JSON (no m
         }
 
     except Exception as e:
+        # Track latency even on error
+        eval_latency = (time.time() - eval_start) * 1000
+        eval_run_tree = get_current_run_tree()
+        if eval_run_tree:
+            eval_run_tree.metadata["latency_ms"] = round(eval_latency, 2)
+            eval_run_tree.metadata["error"] = str(e)
+
         return {
             "key": "correctness",
             "score": 0.0,
@@ -1302,6 +1455,7 @@ Did the AI correctly identify the risk level? Respond with ONLY valid JSON (no m
         }
 
 
+@traceable(name="evaluate_price_anomaly_accuracy")
 def evaluate_price_anomaly_accuracy_phase4(run, example):
     """
     Phase 4 Task 2: Custom Domain-Specific Evaluator (Price Anomaly Accuracy)
@@ -1324,6 +1478,8 @@ def evaluate_price_anomaly_accuracy_phase4(run, example):
             "comment": "detailed success/error flags mapping"
         }
     """
+    eval_start = time.time()
+
     try:
         # Extract generated output
         generated = run.outputs.get("output", {})
@@ -1376,6 +1532,12 @@ def evaluate_price_anomaly_accuracy_phase4(run, example):
         else:
             comment += " | ✅ PASSED: All domain checks verified"
 
+        # Track latency in evaluator span
+        eval_latency = (time.time() - eval_start) * 1000
+        eval_run_tree = get_current_run_tree()
+        if eval_run_tree:
+            eval_run_tree.metadata["latency_ms"] = round(eval_latency, 2)
+
         return {
             "key": "price_anomaly_accuracy",
             "score": score,
@@ -1383,6 +1545,13 @@ def evaluate_price_anomaly_accuracy_phase4(run, example):
         }
 
     except Exception as e:
+        # Track latency even on error
+        eval_latency = (time.time() - eval_start) * 1000
+        eval_run_tree = get_current_run_tree()
+        if eval_run_tree:
+            eval_run_tree.metadata["latency_ms"] = round(eval_latency, 2)
+            eval_run_tree.metadata["error"] = str(e)
+
         return {
             "key": "price_anomaly_accuracy",
             "score": 0.0,

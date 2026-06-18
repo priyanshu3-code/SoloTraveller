@@ -1,0 +1,288 @@
+{
+  "timestamp": "2026-06-18T08:13:34.177763",
+  "summary": {
+    "total_tests": 15,
+    "passed": 2,
+    "failed": 13,
+    "pass_rate": 13.333333333333334,
+    "latencies": {
+      "mean": 6057.701110839844,
+      "median": 6057.701110839844,
+      "min": 6055.13072013855,
+      "max": 6060.271501541138,
+      "stdev": 3.6350813903675885,
+      "total_time": 12115.402221679688
+    }
+  },
+  "results": [
+    {
+      "test_id": "1.1",
+      "test_name": "Delhi Gem Shop (High Risk Baseline)",
+      "status": "SUCCESS",
+      "latency_ms": 6055.13072013855,
+      "generated_risk": "high",
+      "expected_risk": "high",
+      "correctness_match": true,
+      "response": {
+        "advice": "Here are the 5 CRITICAL action steps:\n\n1. Stop now and leave the scene immediately.\n2. Remove yourself from the situation and get to a safe location.\n3. Go directly to your hotel or hostel and inform the staff about the incident.\n4. Collect evidence by taking notes and photos of the person and the location.\n5. Contact local tourist police or your country's embassy/consulate and file an official report.",
+        "analysis": {
+          "location": "Delhi",
+          "scam_probability": "High"
+        },
+        "judge_validation": {
+          "advice_valid": true,
+          "confidence": 0.9,
+          "feedback": "Analysis is thorough and provides clear actionable steps",
+          "risk_valid": true,
+          "summary_valid": true
+        },
+        "latency_ms": 3298.23,
+        "metrics": {
+          "error_count": 0,
+          "error_rate_percent": 0.0,
+          "input_tokens": 1908,
+          "output_tokens": 223,
+          "total_cost_usd": 0.00062285,
+          "total_tokens": 2131
+        },
+        "similar_cases": {
+          "avg_loss": 1511.6279069767443,
+          "case_types": [
+            {
+              "count": 25,
+              "type": "Stranger Approached"
+            },
+            {
+              "count": 18,
+              "type": "Gem Shop"
+            }
+          ],
+          "currency": "INR",
+          "location": "Delhi",
+          "scam_rate": 0.9725581395348837,
+          "total_cases": 43
+        },
+        "summary": "\u2713 Recognize: This is a high-risk situation with multiple scam indicators.\n\u2713 Decide: Do not pay and walk away immediately.\n\u2713 Act: Go to your hotel or tourist police and report the incident.",
+        "workflow_status": "success"
+      },
+      "error": null
+    },
+    {
+      "test_id": "1.2",
+      "test_name": "Bangkok Tuk-Tuk (High Risk Taxi)",
+      "status": "SUCCESS",
+      "latency_ms": 6060.271501541138,
+      "generated_risk": "high",
+      "expected_risk": "high",
+      "correctness_match": true,
+      "response": {
+        "advice": "**DANGER ALERT** \n\n1. STOP NOW: Do not pay any money or agree to anything.\n2. EXTRACT: Remove yourself from the situation immediately and get to safety.\n3. SECURE: Go directly to your hotel or an official place and inform staff about the incident.\n4. EVIDENCE: Take detailed notes and photos of the incident for future reference.\n5. REPORT: Contact local tourist police or your country's embassy/consulate to file an official report.",
+        "analysis": {
+          "location": "Bangkok",
+          "scam_probability": "High"
+        },
+        "judge_validation": {
+          "advice_valid": true,
+          "confidence": 0.95,
+          "feedback": "Comprehensive and urgent guidance provided for a high-risk situation",
+          "risk_valid": true,
+          "summary_valid": true
+        },
+        "latency_ms": 3305.73,
+        "metrics": {
+          "error_count": 0,
+          "error_rate_percent": 0.0,
+          "input_tokens": 1910,
+          "output_tokens": 229,
+          "total_cost_usd": 0.00062826,
+          "total_tokens": 2139
+        },
+        "similar_cases": {
+          "avg_loss": 400.0,
+          "case_types": [
+            {
+              "count": 40,
+              "type": "Tuk Tuk Scam"
+            }
+          ],
+          "currency": "THB",
+          "location": "Bangkok",
+          "scam_rate": 0.96,
+          "total_cases": 40
+        },
+        "summary": "\u2713 Recognize: This is a high-risk situation with multiple scam indicators.\n\u2713 Decide: Do not pay and walk away immediately.\n\u2713 Act: Go to your hotel or tourist police and report the incident.",
+        "workflow_status": "success"
+      },
+      "error": null
+    },
+    {
+      "test_id": "1.3",
+      "test_name": "London Booking.com (Low Risk)",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "Low",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "2.1",
+      "test_name": "Abbreviated Currency (1.5k USD) - FAILS",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "2.2",
+      "test_name": "Currency Mismatch (LKR) - FAILS",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "Low",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "2.3",
+      "test_name": "Decimal Prices (EUR)",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "2.4",
+      "test_name": "No Prices Mentioned",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "3.1",
+      "test_name": "IGNORE Override Injection - FAILS",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "3.2",
+      "test_name": "Role-Play Injection - FAILS",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "400 Client Error: BAD REQUEST for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "4.1",
+      "test_name": "Minor Currency (PKR)",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "4.2",
+      "test_name": "Regional Variant (New Delhi)",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "5.1",
+      "test_name": "Specific Case Match (Tuk-Tuk Only)",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "5.2",
+      "test_name": "Ambiguous Multi-Type Match",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "6.1",
+      "test_name": "HIGH RISK Emergency Advice",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "High",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    },
+    {
+      "test_id": "6.2",
+      "test_name": "LOW RISK Encouragement Advice",
+      "status": "ERROR",
+      "latency_ms": 0,
+      "generated_risk": "ERROR",
+      "expected_risk": "Low",
+      "correctness_match": false,
+      "response": null,
+      "error": "500 Server Error: INTERNAL SERVER ERROR for url: http://localhost:5000/process"
+    }
+  ],
+  "by_group": {
+    "1": {
+      "passed": 2,
+      "failed": 1
+    },
+    "2": {
+      "passed": 0,
+      "failed": 4
+    },
+    "3": {
+      "passed": 0,
+      "failed": 2
+    },
+    "4": {
+      "passed": 0,
+      "failed": 2
+    },
+    "5": {
+      "passed": 0,
+      "failed": 2
+    },
+    "6": {
+      "passed": 0,
+      "failed": 2
+    }
+  }
+}
